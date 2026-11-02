@@ -116,6 +116,7 @@
 </div>
 
 <div id="stats">
+  <span class="k">Wheels</span><span class="v" id="sWheels">0°</span>
   <span class="k">Speed</span><span class="v" id="sSpeed">0.0 mph</span>
   <span class="k">Pull-ups</span><span class="v" id="sPull">0</span>
   <span class="k">Hits</span><span class="v" id="sHits">0</span>
@@ -558,6 +559,8 @@ function update(dt) {
   if (inTarget && Math.abs(S.v) < 0.05) { holdT += dt; if (holdT > 1) finish(true); }
   else holdT = 0;
 
+  const wd = Math.round(S.d / DEG);
+  $('sWheels').textContent = wd === 0 ? 'straight' : Math.abs(wd) + '° ' + (wd > 0 ? 'R' : 'L');
   $('sSpeed').textContent = (Math.abs(S.v) * 2.237).toFixed(1) + ' mph';
   $('sPull').textContent = pullups + ' / par ' + stage.par;
   $('sHits').textContent = hits;
