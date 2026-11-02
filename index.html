@@ -1,0 +1,741 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Backup Trainer">
+<title>Fifth Wheel Backup Trainer</title>
+<style>
+  :root {
+    --ink: #f4f1e8;
+    --dim: #b9b6a8;
+    --panel: rgba(20, 24, 18, 0.78);
+    --accent: #f2b233;
+    --good: #5fcf6a;
+    --warn: #f2b233;
+    --bad: #e5483b;
+    --sl: env(safe-area-inset-left, 0px);
+    --sr: env(safe-area-inset-right, 0px);
+    --st: env(safe-area-inset-top, 0px);
+    --sb: env(safe-area-inset-bottom, 0px);
+  }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden; background: #3c4a31; color: var(--ink);
+    font-family: -apple-system, "SF Pro Text", system-ui, "Segoe UI", sans-serif;
+    touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+  }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  .btn {
+    background: var(--panel); border: 1px solid rgba(255,255,255,0.18); border-radius: 10px;
+    padding: 8px 12px; font-size: 14px; font-weight: 600;
+  }
+  .btn:active { background: rgba(255,255,255,0.2); }
+  #topLeft { position: fixed; top: calc(8px + var(--st)); left: calc(10px + var(--sl)); display: flex; gap: 8px; align-items: flex-start; }
+  #stageInfo { background: var(--panel); border-radius: 10px; padding: 6px 10px; max-width: 34vw; }
+  #stageInfo b { display: block; font-size: 14px; }
+  #stageInfo span { font-size: 12px; color: var(--dim); }
+  #stats {
+    position: fixed; top: calc(8px + var(--st)); right: calc(10px + var(--sr));
+    background: var(--panel); border-radius: 10px; padding: 6px 10px; font-size: 13px;
+    display: grid; grid-template-columns: auto auto; gap: 2px 10px; font-variant-numeric: tabular-nums;
+  }
+  #stats .k { color: var(--dim); }
+  #stats .v { text-align: right; font-weight: 600; }
+  .pedal {
+    position: fixed; bottom: calc(14px + var(--sb)); width: 84px; height: 150px; border-radius: 16px;
+    display: flex; align-items: flex-end; justify-content: center; padding-bottom: 12px; box-sizing: border-box;
+    font-weight: 800; letter-spacing: 0.08em; font-size: 14px; border: 2px solid rgba(255,255,255,0.25);
+    overflow: hidden;
+  }
+  .pedal .fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0; pointer-events: none; }
+  .pedal span { position: relative; pointer-events: none; }
+  #brake { left: calc(14px + var(--sl)); background: rgba(120, 30, 25, 0.75); }
+  #brake .fill { background: rgba(229, 72, 59, 0.8); }
+  #gas { right: calc(14px + var(--sr)); background: rgba(30, 80, 35, 0.75); }
+  #gas .fill { background: rgba(95, 207, 106, 0.8); }
+  #gear {
+    position: fixed; right: calc(110px + var(--sr)); bottom: calc(14px + var(--sb));
+    width: 64px; height: 64px; border-radius: 14px; font-size: 26px; font-weight: 800;
+    background: var(--panel); border: 2px solid var(--accent);
+  }
+  #gear.drive { border-color: var(--good); }
+  #wheelWrap { position: fixed; left: 50%; bottom: calc(10px + var(--sb)); transform: translateX(-50%); display: flex; align-items: flex-end; gap: 10px; }
+  #wheel { width: 110px; height: 110px; touch-action: none; }
+  #wheel svg { width: 100%; height: 100%; display: block; }
+  #steerSrc { font-size: 11px; color: var(--dim); text-align: center; margin-top: 2px; }
+  #sideBtns { display: flex; flex-direction: column; gap: 6px; }
+  #toast {
+    position: fixed; top: 38%; left: 50%; transform: translate(-50%, -50%); background: var(--panel);
+    padding: 10px 18px; border-radius: 12px; font-weight: 700; font-size: 18px; pointer-events: none;
+    opacity: 0; transition: opacity 0.25s;
+  }
+  .overlay {
+    position: fixed; inset: 0; background: rgba(14, 17, 12, 0.92); display: flex; align-items: center; justify-content: center;
+    padding: calc(16px + var(--st)) calc(16px + var(--sr)) calc(16px + var(--sb)) calc(16px + var(--sl)); box-sizing: border-box; overflow-y: auto;
+    touch-action: pan-y;
+  }
+  .card { max-width: 760px; width: 100%; }
+  h1 { margin: 0 0 4px; font-size: 26px; letter-spacing: -0.01em; }
+  h2 { margin: 16px 0 8px; font-size: 15px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); }
+  p { margin: 4px 0; color: var(--dim); line-height: 1.4; font-size: 14px; }
+  #stageList { display: grid; grid-template-columns: repeat(auto-fill, minmax(165px, 1fr)); gap: 10px; }
+  .stageBtn {
+    text-align: left; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.16);
+    border-radius: 12px; padding: 10px 12px;
+  }
+  .stageBtn b { display: block; font-size: 15px; }
+  .stageBtn small { color: var(--dim); font-size: 12px; display: block; margin-top: 3px; }
+  .stars { color: var(--accent); font-size: 14px; margin-top: 4px; display: block; letter-spacing: 2px; }
+  .settings { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; font-size: 14px; }
+  .settings label { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .settings input[type=number] { width: 64px; font-size: 16px; padding: 4px; border-radius: 6px; border: 1px solid #666; background: #222; color: var(--ink); }
+  .settings input[type=range] { width: 120px; }
+  #motionStatus { font-size: 13px; margin-top: 6px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+  .primary { background: var(--accent); color: #1d1a10; border: 0; }
+  #result .card { max-width: 380px; text-align: center; }
+  #resultStars { font-size: 40px; color: var(--accent); letter-spacing: 6px; margin: 6px 0; }
+  #rotate { z-index: 50; text-align: center; font-size: 20px; font-weight: 700; }
+  @media (max-width: 560px) { .settings { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="topLeft">
+  <button class="btn" id="menuBtn">Menu</button>
+  <button class="btn" id="restartBtn">Restart</button>
+  <div id="stageInfo"><b id="stageName"></b><span id="stageBrief"></span></div>
+</div>
+
+<div id="stats">
+  <span class="k">Speed</span><span class="v" id="sSpeed">0.0 mph</span>
+  <span class="k">Pull-ups</span><span class="v" id="sPull">0</span>
+  <span class="k">Hits</span><span class="v" id="sHits">0</span>
+  <span class="k">Time</span><span class="v" id="sTime">0:00</span>
+</div>
+
+<div id="brake" class="pedal"><div class="fill"></div><span>BRAKE</span></div>
+<div id="gas" class="pedal"><div class="fill"></div><span>GAS</span></div>
+<button id="gear">R</button>
+
+<div id="wheelWrap">
+  <div id="sideBtns">
+    <button class="btn" id="zoomIn">+</button>
+    <button class="btn" id="zoomOut">−</button>
+  </div>
+  <div>
+    <div id="wheel">
+      <svg viewBox="-50 -50 100 100" aria-hidden="true">
+        <g id="wheelG">
+          <circle r="44" fill="none" stroke="#222" stroke-width="10"/>
+          <circle r="44" fill="none" stroke="#4a4a46" stroke-width="6"/>
+          <circle r="12" fill="#333" stroke="#555" stroke-width="2"/>
+          <path d="M-40 4 L-12 4 M12 4 L40 4 M0 12 L0 40" stroke="#3a3a37" stroke-width="9" stroke-linecap="round"/>
+          <rect x="-3" y="-50" width="6" height="12" fill="#f2b233"/>
+        </g>
+      </svg>
+    </div>
+    <div id="steerSrc">touch steering</div>
+  </div>
+  <div id="sideBtns2" style="display:flex;flex-direction:column;gap:6px">
+    <button class="btn" id="centerBtn">Center</button>
+    <button class="btn" id="viewBtn">View</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<div id="menu" class="overlay">
+  <div class="card">
+    <h1>Fifth Wheel Backup Trainer</h1>
+    <p>Hold your phone sideways like a steering wheel. Tilt to steer, hold GAS to move, and tap the gear button to switch between R and D.</p>
+    <div class="row">
+      <button class="btn primary" id="motionBtn">Enable tilt steering</button>
+      <span id="motionStatus"></span>
+    </div>
+    <h2>Stages</h2>
+    <div id="stageList"></div>
+    <h2>Your rig</h2>
+    <div class="settings">
+      <label>Kingpin to trailer axle (ft) <input type="number" id="setKp" min="16" max="34" step="0.5"></label>
+      <label>Truck wheelbase (in) <input type="number" id="setWb" min="140" max="200" step="1"></label>
+      <label>Tilt for full lock <input type="range" id="setSens" min="25" max="90" step="5"></label>
+      <label>Reverse tilt direction <input type="checkbox" id="setInv"></label>
+      <label>Show trailer path guide <input type="checkbox" id="setGuide"></label>
+      <label>Rotate view with truck <input type="checkbox" id="setRot"></label>
+    </div>
+    <p style="margin-top:8px">Defaults: F-350 crew cab, 8 ft bed (176 in wheelbase), 35 ft fifth wheel with 27 ft kingpin to axle center. Check your trailer's spec sheet and adjust.</p>
+  </div>
+</div>
+
+<div id="result" class="overlay" hidden>
+  <div class="card">
+    <h1 id="resultTitle">Parked!</h1>
+    <div id="resultStars"></div>
+    <p id="resultText"></p>
+    <div class="row" style="justify-content:center">
+      <button class="btn" id="resRetry">Retry</button>
+      <button class="btn" id="resMenu">Stages</button>
+      <button class="btn primary" id="resNext">Next stage</button>
+    </div>
+  </div>
+</div>
+
+<div id="rotate" class="overlay" hidden>
+  <div>Turn your phone sideways<br><span style="font-size:14px;font-weight:400;color:#b9b6a8">Hold it like a steering wheel</span></div>
+</div>
+
+<script>
+(() => {
+'use strict';
+const DEG = Math.PI / 180, FT = 0.3048, IN = 0.0254;
+const $ = id => document.getElementById(id);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const wrap = a => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
+
+// ---------- settings ----------
+const cfg = { kpFt: 27, wbIn: 176, sens: 55, invert: false, guide: true, rotate: false };
+const best = {};
+try { Object.assign(cfg, JSON.parse(localStorage.getItem('rvcfg') || '{}')); } catch (e) {}
+try { Object.assign(best, JSON.parse(localStorage.getItem('rvbest') || '{}')); } catch (e) {}
+const saveCfg = () => { try { localStorage.setItem('rvcfg', JSON.stringify(cfg)); } catch (e) {} };
+const saveBest = () => { try { localStorage.setItem('rvbest', JSON.stringify(best)); } catch (e) {} };
+
+// ---------- rig geometry (meters, forward = +x local) ----------
+const truck = { a: 0.08, rear: -1.27, w: 2.03, dmax: 33 * DEG };
+const trailer = { len: 35 * FT, front: 1.2, w: 2.59 };
+function rig() {
+  truck.L = cfg.wbIn * IN;
+  truck.front = truck.L + 1.03;
+  trailer.D = cfg.kpFt * FT;
+  trailer.back = -(trailer.len - trailer.front);
+}
+rig();
+
+// ---------- stages ----------
+// World: x right, y down. Heading 0 = +x (east), PI/2 = +y (south).
+function trees(list) { return list.map(([x, y, r]) => ({ t: 'tree', x, y, r })); }
+function posts(list) { return list.map(([x, y]) => ({ t: 'post', x, y, r: 0.15 })); }
+function rv(x, y, h) { return { t: 'rect', k: 'rv', x, y, w: 10.4, h: 2.55, a: h }; }
+
+const baseStages = [
+  {
+    id: 's1', name: 'Straight Back', par: 0,
+    brief: 'Back straight into the pad between the posts. Small corrections only.',
+    start: { x: 0.7, y: -4, th: -90 * DEG + 2.5 * DEG },
+    target: { x: 0, y: 16.5, w: 3.8, l: 12, h: -90 * DEG },
+    ground: [
+      { k: 'road', x: 0, y: -5, w: 7, h: 30, a: 0 },
+      { k: 'pad', x: 0, y: 16.5, w: 5, h: 15, a: 0 },
+    ],
+    obs: [
+      ...posts([[-2.75, 10], [-2.75, 13.5], [-2.75, 17], [-2.75, 20.5], [-2.75, 24], [2.75, 10], [2.75, 13.5], [2.75, 17], [2.75, 20.5], [2.75, 24]]),
+      ...trees([[-6, 26.5, 1.4], [-2, 27, 1.3], [2.5, 26.8, 1.5], [6.5, 26.2, 1.2], [-7, 5, 1.3], [7.2, 2, 1.4], [-7.5, -8, 1.2], [7, -12, 1.5], [-6.5, 15, 1.1], [6.8, 18, 1.3]]),
+    ],
+  },
+  {
+    id: 's2', name: 'Driver-Side 90°', par: 2,
+    brief: 'Site is on your left. Pull past it, then back in. You can watch it in your window.',
+    start: { x: 15, y: 1.3, th: 0 },
+    target: { x: 0, y: -11.5, w: 3.8, l: 12, h: 90 * DEG },
+    ground: [
+      { k: 'road', x: 0, y: 0, w: 140, h: 7, a: 0 },
+      { k: 'pad', x: 0, y: -11.25, w: 5, h: 15.5, a: 0 },
+      { k: 'pad', x: -13, y: -11.25, w: 5, h: 15.5, a: 0 },
+      { k: 'pad', x: 13, y: -11.25, w: 5, h: 15.5, a: 0 },
+    ],
+    obs: [
+      rv(-13, -11, 90 * DEG), rv(13, -11, 90 * DEG),
+      { t: 'rect', k: 'table', x: -4.4, y: -10, w: 1.8, h: 1.5, a: 90 * DEG },
+      { t: 'rect', k: 'pedestal', x: 2.85, y: -16.5, w: 0.4, h: 0.4, a: 0 },
+      ...trees([[-6.3, -5.5, 1.2], [6.4, -6.5, 1.1], [-7, -16, 1.4], [7, -17.5, 1.3], [-2.5, -21, 1.3], [2.2, -21.3, 1.2], [-19.5, -6, 1.3], [19.5, -7, 1.3]]),
+      ...trees([-38, -31, -24, -17, -10, -3, 4, 11, 18, 25, 32, 39, 46].map((x, i) => [x, 9.5 + (i % 2) * 0.8, 1.3])),
+    ],
+  },
+  {
+    id: 's4', name: 'Tight Wooded Site', par: 3,
+    brief: 'Narrow road, trees close to the apron and a narrow pad. Use pull-ups to set up.',
+    start: { x: 16, y: 1, th: 0 },
+    target: { x: 0, y: -11, w: 3.3, l: 11.6, h: 90 * DEG },
+    ground: [
+      { k: 'road', x: 0, y: 0, w: 140, h: 6, a: 0 },
+      { k: 'pad', x: 0, y: -10.5, w: 4.2, h: 15, a: 0 },
+      { k: 'pad', x: -11, y: -10.5, w: 4.2, h: 15, a: 0 },
+      { k: 'pad', x: 11, y: -10.5, w: 4.2, h: 15, a: 0 },
+    ],
+    obs: [
+      rv(-11, -10.5, 90 * DEG), rv(11, -10.5, 90 * DEG),
+      { t: 'rect', k: 'pedestal', x: -2.45, y: -15, w: 0.4, h: 0.4, a: 0 },
+      ...trees([[-3.9, -4.6, 1.0], [4.1, -5.2, 1.0], [-4.3, -10, 0.9], [4.4, -12.5, 1.0], [-3.8, -18.5, 1.2], [3.9, -18.8, 1.1], [0, -19.8, 1.3], [-6.8, -4.2, 1.1], [7, -4.8, 1.0]]),
+      ...trees([-40, -35, -30, -25, -20, -15, -10, -5, 0, 5, 10, 15, 20, 25, 30, 35, 40, 45].map((x, i) => [x + (i % 3) * 0.6, 6.8 + (i % 2) * 0.6, 1.1])),
+    ],
+  },
+];
+function mirror(st, id, name, brief, par) {
+  const m = JSON.parse(JSON.stringify(st));
+  m.id = id; m.name = name; m.brief = brief; m.par = par;
+  m.start.y = -m.start.y; m.start.th = -m.start.th;
+  m.target.y = -m.target.y; m.target.h = -m.target.h;
+  m.ground.forEach(g => { g.y = -g.y; g.a = -g.a; });
+  m.obs.forEach(o => { o.y = -o.y; if (o.a !== undefined) o.a = -o.a; });
+  return m;
+}
+const stages = [
+  baseStages[0],
+  baseStages[1],
+  mirror(baseStages[1], 's3', 'Blind-Side 90°', 'Site is on your right (passenger side). You lose sight of the trailer, so use the mirror side and the guide.', 3),
+  baseStages[2],
+];
+
+// ---------- state ----------
+let stage = stages[0];
+const S = { x: 0, y: 0, th: 0, ph: 0, v: 0, d: 0 };
+let gear = 'R', throttle = 0, braking = false;
+let steerTouch = null, steerKey = 0, steer = 0;
+let hits = 0, pullups = 0, revDist = 0, timeT = 0, started = false, running = false;
+let hitCooldown = 0, flash = 0, holdT = 0, inTarget = false;
+let zoom = 1, cam = { x: 0, y: 0, r: 0 };
+
+function resetStage(st) {
+  stage = st; rig();
+  const s = st.start;
+  Object.assign(S, { x: s.x, y: s.y, th: s.th, ph: s.th, v: 0, d: 0 });
+  gear = 'R'; throttle = 0; braking = false; steerKey = 0;
+  hits = 0; pullups = 0; revDist = 0; timeT = 0; started = false; holdT = 0; flash = 0;
+  if (!sensor.on) steer = 0;
+  const c = rigCenter(); cam.x = c.x; cam.y = c.y; cam.r = cfg.rotate ? -S.th - Math.PI / 2 : 0;
+  $('stageName').textContent = st.name; $('stageBrief').textContent = st.brief;
+  updateGear(); running = true;
+}
+
+// ---------- physics ----------
+const hitch = s => ({ x: s.x + truck.a * Math.cos(s.th), y: s.y + truck.a * Math.sin(s.th) });
+function step(s, dt) {
+  const thd = s.v / truck.L * Math.tan(s.d);
+  const rel = s.th - s.ph;
+  const phd = (s.v * Math.sin(rel) + truck.a * thd * Math.cos(rel)) / trailer.D;
+  s.x += s.v * Math.cos(s.th) * dt; s.y += s.v * Math.sin(s.th) * dt;
+  s.th += thd * dt; s.ph += phd * dt;
+}
+function boxPts(cx, cy, ang, f, b, hw) {
+  const c = Math.cos(ang), sn = Math.sin(ang);
+  return [[f, -hw], [f, hw], [b, hw], [b, -hw]].map(([lx, ly]) => ({ x: cx + lx * c - ly * sn, y: cy + lx * sn + ly * c }));
+}
+const truckPoly = s => boxPts(s.x, s.y, s.th, truck.front, truck.rear, truck.w / 2);
+const trailerPoly = s => { const h = hitch(s); return boxPts(h.x, h.y, s.ph, trailer.front, trailer.back, trailer.w / 2); };
+const rectPoly = o => boxPts(o.x, o.y, o.a, o.w / 2, -o.w / 2, o.h / 2);
+function rigCenter() {
+  const h = hitch(S), tb = (trailer.front + trailer.back) / 2;
+  const tx = h.x + tb * Math.cos(S.ph), ty = h.y + tb * Math.sin(S.ph);
+  return { x: (h.x * 1 + tx * 2) / 3, y: (h.y + ty * 2) / 3 };
+}
+
+function sat(A, B) {
+  for (const P of [A, B]) for (let i = 0; i < P.length; i++) {
+    const p = P[i], q = P[(i + 1) % P.length], nx = q.y - p.y, ny = p.x - q.x;
+    let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity;
+    for (const v of A) { const d = v.x * nx + v.y * ny; a0 = Math.min(a0, d); a1 = Math.max(a1, d); }
+    for (const v of B) { const d = v.x * nx + v.y * ny; b0 = Math.min(b0, d); b1 = Math.max(b1, d); }
+    if (a1 < b0 || b1 < a0) return false;
+  }
+  return true;
+}
+function circlePoly(cx, cy, r, P) {
+  let inside = false;
+  for (let i = 0, j = P.length - 1; i < P.length; j = i++) {
+    const a = P[i], b = P[j];
+    if ((a.y > cy) !== (b.y > cy) && cx < (b.x - a.x) * (cy - a.y) / (b.y - a.y) + a.x) inside = !inside;
+    const ex = b.x - a.x, ey = b.y - a.y;
+    const t = clamp(((cx - a.x) * ex + (cy - a.y) * ey) / (ex * ex + ey * ey), 0, 1);
+    const dx = a.x + ex * t - cx, dy = a.y + ey * t - cy;
+    if (dx * dx + dy * dy < r * r) return true;
+  }
+  return inside;
+}
+function collides(s) {
+  const polys = [truckPoly(s), trailerPoly(s)];
+  for (const o of stage.obs) for (const P of polys) {
+    if (o.t === 'rect' ? sat(P, rectPoly(o)) : circlePoly(o.x, o.y, o.t === 'tree' ? o.r * 0.55 : o.r, P)) return true;
+  }
+  return false;
+}
+function trailerInTarget(s) {
+  const t = stage.target, c = Math.cos(t.h), sn = Math.sin(t.h);
+  return trailerPoly(s).every(p => {
+    const dx = p.x - t.x, dy = p.y - t.y;
+    return Math.abs(dx * c + dy * sn) <= t.l / 2 && Math.abs(-dx * sn + dy * c) <= t.w / 2;
+  });
+}
+
+// ---------- input: tilt ----------
+const sensor = { on: false, raw: 0, center: null, tilt: 0 };
+function onMotion(e) {
+  const g = e.accelerationIncludingGravity;
+  if (!g || g.x === null || g.y === null) return;
+  const mag = Math.hypot(g.x, g.y);
+  if (mag < 2) return; // phone lying flat: ignore
+  sensor.raw = Math.atan2(g.x, g.y);
+  if (sensor.center === null) sensor.center = sensor.raw;
+  if (!sensor.on) { sensor.on = true; updateSteerSrc(); }
+  let t = -wrap(sensor.raw - sensor.center) / DEG;
+  if (cfg.invert) t = -t;
+  sensor.tilt += (t - sensor.tilt) * 0.3;
+}
+async function enableMotion() {
+  try {
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+      const r = await DeviceMotionEvent.requestPermission();
+      if (r !== 'granted') { $('motionStatus').textContent = 'Motion access denied. Using touch steering. To allow it, close Safari fully and reopen the page.'; return; }
+    }
+    window.addEventListener('devicemotion', onMotion);
+    $('motionStatus').textContent = 'Tilt steering ready. Hold the phone level and tap Center to recalibrate anytime.';
+    setTimeout(() => { if (!sensor.on) $('motionStatus').textContent = 'No motion data. iPhone needs this page on https://. Using touch steering.'; }, 1500);
+  } catch (e) {
+    $('motionStatus').textContent = 'Motion not available (' + e.message + '). Using touch steering.';
+  }
+}
+function updateSteerSrc() { $('steerSrc').textContent = sensor.on ? 'tilt steering' : 'drag wheel to steer'; }
+
+// ---------- input: touch ----------
+function pedal(el, onSet) {
+  const fill = el.querySelector('.fill');
+  const set = (e, down) => {
+    if (!down) { onSet(0); fill.style.height = '0'; return; }
+    const r = el.getBoundingClientRect();
+    const f = clamp((r.bottom - e.clientY) / r.height, 0.2, 1);
+    onSet(f); fill.style.height = (f * 100) + '%';
+  };
+  el.addEventListener('pointerdown', e => { el.setPointerCapture(e.pointerId); set(e, true); e.preventDefault(); });
+  el.addEventListener('pointermove', e => { if (el.hasPointerCapture(e.pointerId)) set(e, true); });
+  el.addEventListener('pointerup', e => set(e, false));
+  el.addEventListener('pointercancel', e => set(e, false));
+}
+pedal($('gas'), f => throttle = f);
+pedal($('brake'), f => braking = f > 0);
+
+const wheel = $('wheel');
+wheel.addEventListener('pointerdown', e => { wheel.setPointerCapture(e.pointerId); steerTouch = { x0: e.clientX, s0: steer }; e.preventDefault(); });
+wheel.addEventListener('pointermove', e => { if (steerTouch) steer = clamp(steerTouch.s0 + (e.clientX - steerTouch.x0) / 90, -1, 1); });
+const endWheel = () => { steerTouch = null; };
+wheel.addEventListener('pointerup', endWheel); wheel.addEventListener('pointercancel', endWheel);
+
+function toast(msg, ms = 1200) {
+  const t = $('toast'); t.textContent = msg; t.style.opacity = 1;
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.style.opacity = 0, ms);
+}
+function updateGear() { const g = $('gear'); g.textContent = gear; g.classList.toggle('drive', gear === 'D'); }
+function toggleGear() {
+  if (Math.abs(S.v) > 0.05) { toast('Stop before shifting'); return; }
+  if (gear === 'R') { if (revDist > 0.3) pullups++; gear = 'D'; }
+  else { gear = 'R'; revDist = 0; }
+  updateGear();
+}
+$('gear').addEventListener('click', toggleGear);
+$('centerBtn').addEventListener('click', () => { sensor.center = sensor.raw; sensor.tilt = 0; if (!sensor.on) steer = 0; toast('Steering centered', 800); });
+$('viewBtn').addEventListener('click', () => { cfg.rotate = !cfg.rotate; saveCfg(); $('setRot').checked = cfg.rotate; toast(cfg.rotate ? 'View rotates with truck' : 'Map view fixed', 900); });
+$('zoomIn').addEventListener('click', () => zoom = clamp(zoom * 1.25, 0.5, 3));
+$('zoomOut').addEventListener('click', () => zoom = clamp(zoom / 1.25, 0.5, 3));
+$('restartBtn').addEventListener('click', () => resetStage(stage));
+$('menuBtn').addEventListener('click', showMenu);
+
+const keys = {};
+addEventListener('keydown', e => {
+  keys[e.key] = true;
+  if (e.key === 'r' || e.key === ' ') toggleGear();
+});
+addEventListener('keyup', e => { keys[e.key] = false; });
+
+// ---------- menu ----------
+function starStr(n) { return '★'.repeat(n) + '☆'.repeat(3 - n); }
+function buildMenu() {
+  const list = $('stageList'); list.innerHTML = '';
+  stages.forEach((st, i) => {
+    const b = document.createElement('button'); b.className = 'stageBtn';
+    const bs = best[st.id];
+    b.innerHTML = `<b>${i + 1}. ${st.name}</b><small>${st.brief}</small><span class="stars">${bs ? starStr(bs.stars) : ''}</span>`;
+    b.addEventListener('click', () => { if (!sensor.on) enableMotion(); $('menu').hidden = true; resetStage(st); });
+    list.appendChild(b);
+  });
+  $('setKp').value = cfg.kpFt; $('setWb').value = cfg.wbIn; $('setSens').value = cfg.sens;
+  $('setInv').checked = cfg.invert; $('setGuide').checked = cfg.guide; $('setRot').checked = cfg.rotate;
+}
+function showMenu() { running = false; buildMenu(); $('result').hidden = true; $('menu').hidden = false; }
+$('motionBtn').addEventListener('click', enableMotion);
+$('setKp').addEventListener('change', e => { cfg.kpFt = clamp(+e.target.value || 27, 16, 34); saveCfg(); rig(); });
+$('setWb').addEventListener('change', e => { cfg.wbIn = clamp(+e.target.value || 176, 140, 200); saveCfg(); rig(); });
+$('setSens').addEventListener('input', e => { cfg.sens = +e.target.value; saveCfg(); });
+$('setInv').addEventListener('change', e => { cfg.invert = e.target.checked; saveCfg(); });
+$('setGuide').addEventListener('change', e => { cfg.guide = e.target.checked; saveCfg(); });
+$('setRot').addEventListener('change', e => { cfg.rotate = e.target.checked; saveCfg(); });
+
+function finish(win, why) {
+  running = false;
+  const idx = stages.indexOf(stage);
+  if (win) {
+    const stars = hits === 0 && pullups <= stage.par ? 3 : hits <= 1 && pullups <= stage.par + 2 ? 2 : 1;
+    const prev = best[stage.id];
+    if (!prev || stars > prev.stars || (stars === prev.stars && timeT < prev.time)) { best[stage.id] = { stars, time: timeT }; saveBest(); }
+    $('resultTitle').textContent = 'Parked!';
+    $('resultStars').textContent = starStr(stars);
+    $('resultText').textContent = `Time ${fmtTime(timeT)} · ${pullups} pull-up${pullups === 1 ? '' : 's'} (par ${stage.par}) · ${hits} hit${hits === 1 ? '' : 's'}`;
+  } else {
+    $('resultTitle').textContent = why;
+    $('resultStars').textContent = '';
+    $('resultText').textContent = 'The hitch angle went past 75°. On a real rig the trailer would hit the truck cab. Stop and pull forward to straighten out before the angle gets that sharp.';
+  }
+  $('resNext').hidden = !win || idx === stages.length - 1;
+  $('result').hidden = false;
+}
+$('resRetry').addEventListener('click', () => { $('result').hidden = true; resetStage(stage); });
+$('resMenu').addEventListener('click', showMenu);
+$('resNext').addEventListener('click', () => { $('result').hidden = true; resetStage(stages[stages.indexOf(stage) + 1]); });
+
+const fmtTime = t => Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0');
+
+// ---------- update ----------
+function update(dt) {
+  // steering input
+  if (keys.ArrowLeft) steer = clamp(steer - dt * 1.2, -1, 1);
+  if (keys.ArrowRight) steer = clamp(steer + dt * 1.2, -1, 1);
+  if (sensor.on && !steerTouch && !keys.ArrowLeft && !keys.ArrowRight) {
+    let t = sensor.tilt; if (Math.abs(t) < 2) t = 0;
+    steer = clamp(t / cfg.sens, -1, 1);
+  }
+  const thr = keys.ArrowUp ? 0.7 : throttle;
+  const brk = braking || keys.ArrowDown;
+
+  // speed
+  const dir = gear === 'R' ? -1 : 1, vmax = gear === 'R' ? 1.35 : 2.5;
+  if (brk) S.v -= Math.sign(S.v) * Math.min(Math.abs(S.v), 4 * dt);
+  else if (thr > 0) {
+    const tgt = dir * thr * vmax;
+    const rate = Math.abs(tgt) > Math.abs(S.v) ? 0.9 : 1.5;
+    S.v += clamp(tgt - S.v, -rate * dt, rate * dt);
+  } else S.v -= Math.sign(S.v) * Math.min(Math.abs(S.v), 1.2 * dt);
+
+  if (Math.abs(S.v) > 0.02) started = true;
+  if (started) timeT += dt;
+  hitCooldown -= dt; flash = Math.max(0, flash - dt);
+
+  const N = 4, h = dt / N, dTarget = steer * truck.dmax;
+  for (let i = 0; i < N; i++) {
+    S.d += clamp(dTarget - S.d, -0.75 * h, 0.75 * h);
+    const prev = { ...S };
+    step(S, h);
+    if (collides(S)) {
+      Object.assign(S, prev); S.v = 0;
+      if (hitCooldown <= 0) { hits++; hitCooldown = 1; flash = 0.5; toast('Bump!', 700); if (navigator.vibrate) navigator.vibrate(120); }
+      break;
+    }
+    if (S.v < 0) revDist += -S.v * h;
+  }
+
+  const rel = wrap(S.th - S.ph);
+  if (Math.abs(rel) > 75 * DEG) { finish(false, 'Jackknifed'); return; }
+
+  inTarget = trailerInTarget(S) && Math.abs(wrap(S.ph - stage.target.h)) < 6 * DEG;
+  if (inTarget && Math.abs(S.v) < 0.05) { holdT += dt; if (holdT > 1) finish(true); }
+  else holdT = 0;
+
+  $('sSpeed').textContent = (Math.abs(S.v) * 2.237).toFixed(1) + ' mph';
+  $('sPull').textContent = pullups + ' / par ' + stage.par;
+  $('sHits').textContent = hits;
+  $('sTime').textContent = fmtTime(timeT);
+  $('wheelG').setAttribute('transform', `rotate(${(S.d / truck.dmax) * 540})`);
+}
+
+// ---------- render ----------
+const cv = $('c'), ctx = cv.getContext('2d');
+let W = 0, H = 0, dpr = 1;
+function resize() {
+  dpr = Math.min(devicePixelRatio || 1, 2);
+  W = innerWidth; H = innerHeight;
+  cv.width = W * dpr; cv.height = H * dpr;
+  const touch = 'ontouchstart' in window;
+  $('rotate').hidden = !(touch && H > W);
+}
+addEventListener('resize', resize); resize();
+
+const COL = {
+  grass: '#4f6b3a', grass2: '#587643', road: '#8a8273', roadEdge: '#6f6859', pad: '#a59c89',
+  target: '#f2b233', good: '#5fcf6a', truck: '#2c4f86', cab: '#1f3a66', glass: '#9cc3e6', bed: '#1a2433',
+  trailer: '#ece6d6', trailerCap: '#c9c0a8', trailerLine: '#5a5446', tire: '#1b1b1b',
+};
+function fillPoly(P) { ctx.beginPath(); P.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.closePath(); }
+
+let grassPattern = null;
+function makeGrass() {
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d'); g.fillStyle = COL.grass; g.fillRect(0, 0, 128, 128);
+  for (let i = 0; i < 260; i++) { g.fillStyle = Math.random() < 0.5 ? COL.grass2 : '#476334'; g.fillRect(Math.random() * 128, Math.random() * 128, 2, 2); }
+  grassPattern = ctx.createPattern(c, 'repeat');
+}
+makeGrass();
+
+function drawTruck(s, px) {
+  ctx.save(); ctx.translate(s.x, s.y); ctx.rotate(s.th);
+  const w = truck.w, hw = w / 2, L = truck.L;
+  // tires
+  ctx.fillStyle = COL.tire;
+  for (const sy of [-1, 1]) {
+    ctx.fillRect(-0.4, sy * hw - 0.17 - (sy > 0 ? 0.08 : -0.08) * 0, 0.8, 0.34);
+    ctx.save(); ctx.translate(L, sy * (hw - 0.05)); ctx.rotate(s.d); ctx.fillRect(-0.4, -0.17, 0.8, 0.34); ctx.restore();
+  }
+  // body
+  ctx.fillStyle = COL.truck; ctx.fillRect(truck.rear, -hw + 0.08, truck.front - truck.rear, w - 0.16);
+  // bed
+  const bedEnd = truck.rear + 2.44;
+  ctx.fillStyle = COL.bed; ctx.fillRect(truck.rear + 0.1, -hw + 0.2, bedEnd - truck.rear - 0.15, w - 0.4);
+  // hitch plate
+  ctx.fillStyle = '#555'; ctx.fillRect(truck.a - 0.35, -0.5, 0.7, 1.0);
+  // cab
+  ctx.fillStyle = COL.cab; ctx.fillRect(bedEnd + 0.1, -hw + 0.12, 2.6, w - 0.24);
+  ctx.fillStyle = COL.glass; ctx.fillRect(bedEnd + 2.25, -hw + 0.25, 0.4, w - 0.5); ctx.fillRect(bedEnd + 0.15, -hw + 0.3, 0.15, w - 0.6);
+  // hood line
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)'; ctx.lineWidth = 1.5 / px;
+  ctx.beginPath(); ctx.moveTo(bedEnd + 2.8, 0); ctx.lineTo(truck.front - 0.1, 0); ctx.stroke();
+  // tow mirrors
+  ctx.fillStyle = '#111'; ctx.fillRect(bedEnd + 2.0, -hw - 0.35, 0.18, 0.35); ctx.fillRect(bedEnd + 2.0, hw, 0.18, 0.35);
+  // headlights
+  ctx.fillStyle = '#fff7c9'; ctx.fillRect(truck.front - 0.12, -hw + 0.15, 0.12, 0.35); ctx.fillRect(truck.front - 0.12, hw - 0.5, 0.12, 0.35);
+  ctx.restore();
+}
+function drawTrailer(s, px) {
+  const hp = hitch(s);
+  ctx.save(); ctx.translate(hp.x, hp.y); ctx.rotate(s.ph);
+  const hw = trailer.w / 2, D = trailer.D, f = trailer.front, b = trailer.back;
+  ctx.fillStyle = COL.tire;
+  for (const ax of [-D - 0.45, -D + 0.45]) for (const sy of [-1, 1]) ctx.fillRect(ax - 0.37, sy * hw - 0.15 + (sy > 0 ? -0.1 : 0.1), 0.74, 0.3);
+  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(b + 0.25, -hw + 0.25, f - b, trailer.w); // shadow
+  ctx.fillStyle = COL.trailer; ctx.fillRect(b, -hw, f - b, trailer.w);
+  ctx.fillStyle = COL.trailerCap; ctx.fillRect(f - 1.0, -hw, 1.0, trailer.w);
+  ctx.strokeStyle = COL.trailerLine; ctx.lineWidth = 2 / px; ctx.strokeRect(b, -hw, f - b, trailer.w);
+  // roof details: AC units, vents, slide-out seam
+  ctx.fillStyle = '#d4cdb9'; ctx.fillRect(-3.4, -0.45, 0.9, 0.9); ctx.fillRect(-7.2, -0.45, 0.9, 0.9);
+  ctx.strokeStyle = 'rgba(90,84,70,0.45)'; ctx.lineWidth = 1 / px;
+  ctx.strokeRect(-6.5, -hw + 0.05, 3.8, 0.5); ctx.strokeRect(-5.5, hw - 0.55, 2.8, 0.5);
+  // stripe
+  ctx.fillStyle = '#7a5a3a'; ctx.fillRect(b, -hw, f - b, 0.12); ctx.fillRect(b, hw - 0.12, f - b, 0.12);
+  // tail lights
+  ctx.fillStyle = '#e5483b'; ctx.fillRect(b, -hw, 0.12, 0.4); ctx.fillRect(b, hw - 0.4, 0.12, 0.4);
+  // kingpin
+  ctx.fillStyle = '#333'; ctx.beginPath(); ctx.arc(0, 0, 0.12, 0, 7); ctx.fill();
+  ctx.restore();
+}
+function drawTree(o, px) {
+  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.arc(o.x + 0.35, o.y + 0.35, o.r, 0, 7); ctx.fill();
+  ctx.fillStyle = '#2e4a24'; ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, 7); ctx.fill();
+  ctx.fillStyle = '#3b5e2d'; ctx.beginPath(); ctx.arc(o.x - o.r * 0.25, o.y - o.r * 0.25, o.r * 0.62, 0, 7); ctx.fill();
+  ctx.fillStyle = '#4c3826'; ctx.beginPath(); ctx.arc(o.x, o.y, o.r * 0.55 * 0.5, 0, 7); ctx.fill();
+}
+function drawObs(o, px) {
+  if (o.t === 'tree') return drawTree(o, px);
+  if (o.t === 'post') {
+    ctx.fillStyle = '#d9d4c4'; ctx.beginPath(); ctx.arc(o.x, o.y, o.r, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 1 / px; ctx.stroke(); return;
+  }
+  const P = rectPoly(o);
+  if (o.k === 'rv') {
+    ctx.fillStyle = 'rgba(0,0,0,0.25)'; fillPoly(P.map(p => ({ x: p.x + 0.25, y: p.y + 0.25 }))); ctx.fill();
+    ctx.fillStyle = '#d9dde2'; fillPoly(P); ctx.fill(); ctx.strokeStyle = '#6a7078'; ctx.lineWidth = 2 / px; ctx.stroke();
+  } else if (o.k === 'table') {
+    ctx.fillStyle = '#8a6a48'; fillPoly(P); ctx.fill(); ctx.strokeStyle = '#4c3826'; ctx.lineWidth = 1.5 / px; ctx.stroke();
+  } else {
+    ctx.fillStyle = '#9aa0a6'; fillPoly(P); ctx.fill(); ctx.strokeStyle = '#222'; ctx.lineWidth = 1 / px; ctx.stroke();
+  }
+}
+function drawTarget(px) {
+  const t = stage.target;
+  ctx.save(); ctx.translate(t.x, t.y); ctx.rotate(t.h);
+  const col = inTarget ? COL.good : COL.target;
+  ctx.fillStyle = inTarget ? 'rgba(95,207,106,0.18)' : 'rgba(242,178,51,0.12)';
+  ctx.fillRect(-t.l / 2, -t.w / 2, t.l, t.w);
+  ctx.setLineDash([0.6, 0.4]); ctx.strokeStyle = col; ctx.lineWidth = 3 / px;
+  ctx.strokeRect(-t.l / 2, -t.w / 2, t.l, t.w); ctx.setLineDash([]);
+  // arrow showing which way the trailer front should face
+  ctx.fillStyle = col; ctx.beginPath();
+  ctx.moveTo(t.l / 2 - 0.6, 0); ctx.lineTo(t.l / 2 - 2.0, -0.7); ctx.lineTo(t.l / 2 - 2.0, 0.7); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+function drawGuide(px) {
+  if (!cfg.guide || gear !== 'R') return;
+  const g = { ...S, v: -1 };
+  const ptsR = [], ptsA = [];
+  for (let i = 0; i < 100; i++) {
+    for (let k = 0; k < 2; k++) step(g, 0.06);
+    const h = hitch(g), c = Math.cos(g.ph), s = Math.sin(g.ph);
+    ptsR.push({ x: h.x + trailer.back * c, y: h.y + trailer.back * s });
+    if (Math.abs(wrap(g.th - g.ph)) > 75 * DEG) break;
+  }
+  ctx.setLineDash([0.5, 0.5]); ctx.lineWidth = 3 / px; ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+  ctx.beginPath(); ptsR.forEach((p, i) => i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)); ctx.stroke(); ctx.setLineDash([]);
+}
+function drawGauge() {
+  const rel = wrap(S.th - S.ph) / DEG;
+  const cx = W / 2, cy = 16 + parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--st') || 0) + 58, r = 50;
+  ctx.save();
+  ctx.fillStyle = 'rgba(20,24,18,0.78)';
+  ctx.beginPath(); ctx.roundRect ? ctx.roundRect(cx - 74, cy - 66, 148, 92, 12) : ctx.rect(cx - 74, cy - 66, 148, 92); ctx.fill();
+  const seg = (a0, a1, c) => { ctx.strokeStyle = c; ctx.lineWidth = 9; ctx.beginPath(); ctx.arc(cx, cy, r, (-90 + a0) * DEG, (-90 + a1) * DEG); ctx.stroke(); };
+  seg(-90, -75, '#e5483b'); seg(-75, -45, '#f2b233'); seg(-45, 45, '#5fcf6a'); seg(45, 75, '#f2b233'); seg(75, 90, '#e5483b');
+  const a = (-90 + clamp(rel, -90, 90)) * DEG;
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * (r + 4), cy + Math.sin(a) * (r + 4)); ctx.stroke();
+  ctx.fillStyle = '#f4f1e8'; ctx.font = '600 13px -apple-system, system-ui, sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText(`Hitch ${Math.abs(rel).toFixed(0)}°`, cx, cy + 18);
+  ctx.restore();
+}
+
+function render() {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const px = Math.min(W, H) / 26 * zoom;
+  const c = rigCenter();
+  cam.x += (c.x - cam.x) * 0.08; cam.y += (c.y - cam.y) * 0.08;
+  const rt = cfg.rotate ? -S.th - Math.PI / 2 : 0;
+  cam.r += wrap(rt - cam.r) * 0.06;
+
+  ctx.fillStyle = COL.grass; ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  ctx.translate(W / 2, H / 2 + H * 0.05); ctx.scale(px, px); ctx.rotate(cam.r); ctx.translate(-cam.x, -cam.y);
+  // grass texture
+  ctx.save(); ctx.scale(1 / 8, 1 / 8); ctx.fillStyle = grassPattern; ctx.fillRect((cam.x - 80) * 8, (cam.y - 80) * 8, 1280, 1280); ctx.restore();
+  for (const g of stage.ground) {
+    const P = rectPoly(g);
+    ctx.fillStyle = g.k === 'road' ? COL.road : COL.pad; fillPoly(P); ctx.fill();
+    ctx.strokeStyle = COL.roadEdge; ctx.lineWidth = 2 / px; ctx.stroke();
+  }
+  drawTarget(px);
+  drawGuide(px);
+  for (const o of stage.obs) if (o.t !== 'tree') drawObs(o, px);
+  drawTruck(S, px);
+  drawTrailer(S, px);
+  for (const o of stage.obs) if (o.t === 'tree') drawObs(o, px);
+  ctx.restore();
+
+  if (flash > 0) { ctx.fillStyle = `rgba(229,72,59,${flash * 0.5})`; ctx.fillRect(0, 0, W, H); }
+  drawGauge();
+  if (inTarget && running) {
+    ctx.fillStyle = '#5fcf6a'; ctx.font = '700 18px -apple-system, system-ui, sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(Math.abs(S.v) < 0.05 ? 'Hold still…' : 'In the spot. Stop!', W / 2, H * 0.32);
+  }
+}
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (running) update(dt);
+  render();
+  requestAnimationFrame(frame);
+}
+
+resetStage(stages[0]); running = false;
+updateSteerSrc(); buildMenu();
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
