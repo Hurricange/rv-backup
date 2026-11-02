@@ -190,7 +190,7 @@
 </div>
 
 <div id="rotate" class="overlay" hidden>
-  <div>Turn your phone sideways<br><span style="font-size:14px;font-weight:400;color:#b9b6a8">Hold it like a steering wheel</span></div>
+  <div>Turn your phone sideways<br><span style="font-size:14px;font-weight:400;color:#b9b6a8">Hold it like a steering wheel. If the screen won't rotate, turn off Portrait Orientation Lock in Control Center.</span><br><button class="btn" id="rotateSkip" style="margin-top:14px">Continue anyway</button></div>
 </div>
 
 <script>
@@ -567,9 +567,14 @@ function resize() {
   W = innerWidth; H = innerHeight;
   cv.width = W * dpr; cv.height = H * dpr;
   const touch = 'ontouchstart' in window;
-  $('rotate').hidden = !(touch && H > W);
+  $('rotate').hidden = rotateSkipped || !(touch && H > W);
 }
-addEventListener('resize', resize); resize();
+let rotateSkipped = false;
+$('rotateSkip').addEventListener('click', () => { rotateSkipped = true; $('rotate').hidden = true; });
+addEventListener('resize', resize);
+addEventListener('orientationchange', () => { setTimeout(resize, 150); setTimeout(resize, 500); });
+if (window.visualViewport) visualViewport.addEventListener('resize', resize);
+resize();
 
 const COL = {
   grass: '#4f6b3a', grass2: '#587643', road: '#8a8273', roadEdge: '#6f6859', pad: '#a59c89',
