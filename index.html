@@ -211,7 +211,7 @@ const saveCfg = () => { try { localStorage.setItem('rvcfg', JSON.stringify(cfg))
 const saveBest = () => { try { localStorage.setItem('rvbest', JSON.stringify(best)); } catch (e) {} };
 
 // ---------- rig geometry (meters, forward = +x local) ----------
-const truck = { a: 0.08, rear: -1.27, w: 2.03, dmax: 33 * DEG };
+const truck = { a: 0.08, rear: -1.27, w: 2.03, dmax: 34 * DEG, cab: 56 * IN }; // 34° lock ≈ Ford's 57.8 ft turning circle; cab-to-axle 56 in
 const trailer = { len: 35 * FT, front: 1.2, w: 2.59 };
 function rig() {
   truck.L = cfg.wbIn * IN;
@@ -605,7 +605,7 @@ function drawTruck(s, px) {
   // body
   ctx.fillStyle = COL.truck; ctx.fillRect(truck.rear, -hw + 0.08, truck.front - truck.rear, w - 0.16);
   // bed
-  const bedEnd = truck.rear + 2.44;
+  const bedEnd = truck.cab - 0.1;
   ctx.fillStyle = COL.bed; ctx.fillRect(truck.rear + 0.1, -hw + 0.2, bedEnd - truck.rear - 0.15, w - 0.4);
   // hitch plate
   ctx.fillStyle = '#555'; ctx.fillRect(truck.a - 0.35, -0.5, 0.7, 1.0);
