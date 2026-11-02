@@ -517,6 +517,11 @@ function update(dt) {
     let t = sensor.tilt; if (Math.abs(t) < 2) t = 0;
     steer = clamp(t / cfg.sens, -1, 1);
   }
+  // Wheel self-centers like a real truck when you let go: strongly going forward, weakly in reverse.
+  if (!sensor.on && !steerTouch && !keys.ArrowLeft && !keys.ArrowRight) {
+    const k = S.v > 0 ? 0.35 : 0.08; // fraction of lock returned per meter traveled
+    steer -= steer * Math.min(1, k * Math.abs(S.v) * dt);
+  }
   const thr = keys.ArrowUp ? 0.7 : throttle;
   const brk = braking || keys.ArrowDown;
 
