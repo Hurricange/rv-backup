@@ -74,11 +74,13 @@
     opacity: 0; transition: opacity 0.25s;
   }
   .overlay {
-    position: fixed; inset: 0; background: rgba(14, 17, 12, 0.92); display: flex; align-items: center; justify-content: center;
+    position: fixed; inset: 0; background: rgba(14, 17, 12, 0.92); display: flex;
     padding: calc(16px + var(--st)) calc(16px + var(--sr)) calc(16px + var(--sb)) calc(16px + var(--sl)); box-sizing: border-box; overflow-y: auto;
     touch-action: pan-y;
   }
-  .card { max-width: 760px; width: 100%; }
+  .card { max-width: 760px; width: 100%; margin: auto; }
+  #rotate > div { margin: auto; }
+  #tiltBtn { border-color: var(--accent); color: var(--accent); }
   h1 { margin: 0 0 4px; font-size: 26px; letter-spacing: -0.01em; }
   h2 { margin: 16px 0 8px; font-size: 15px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); }
   p { margin: 4px 0; color: var(--dim); line-height: 1.4; font-size: 14px; }
@@ -143,6 +145,7 @@
     <div id="steerSrc">touch steering</div>
   </div>
   <div id="sideBtns2" style="display:flex;flex-direction:column;gap:6px">
+    <button class="btn" id="tiltBtn">Tilt</button>
     <button class="btn" id="centerBtn">Center</button>
     <button class="btn" id="viewBtn">View</button>
   </div>
@@ -399,7 +402,14 @@ async function enableMotion() {
     $('motionStatus').textContent = 'Motion not available (' + e.message + '). Using touch steering.';
   }
 }
-function updateSteerSrc() { $('steerSrc').textContent = sensor.on ? 'tilt steering' : 'drag wheel to steer'; }
+function updateSteerSrc() {
+  $('steerSrc').textContent = sensor.on ? 'tilt steering' : 'drag wheel to steer';
+  $('tiltBtn').hidden = sensor.on;
+}
+$('tiltBtn').addEventListener('click', async () => {
+  await enableMotion();
+  setTimeout(() => toast(sensor.on ? 'Tilt steering on' : 'Tilt not available. Using touch.', 1500), 600);
+});
 
 // ---------- input: touch ----------
 function pedal(el, onSet) {
